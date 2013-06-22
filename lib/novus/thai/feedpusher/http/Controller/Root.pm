@@ -12,6 +12,7 @@ use Novus::Data::Media;
 use Novus::Data::SearchMeta;
 
 use Encode;
+use POSIX qw( strftime );
 use Data::Dumper;
 
 BEGIN { extends 'Catalyst::Controller' }
@@ -134,7 +135,14 @@ sub resultset_to_ndf_feed {
         $entry->summary($res->description);
         $entry->link($res->link);
         
+#        $d =    $res->timestamp
+        print "-----------------> ",strftime('%Y-%m-%dT%H:%M:%SZ',gmtime($res->timestamp)), "\n";
+        my $updates = strftime('%Y-%m-%dT%H:%M:%SZ',gmtime($res->timestamp));
+        $entry->modified( DateTime::Format::ISO8601->parse_datetime($updates) );
         
+#        $entry->siteid($meta->{feed}{source}{baseurl} || '');
+#        $entry->sitename($meta->{feed}{source}{name} || '');
+#        $entry->siteurl($meta->{feed}{source}{baseurl});
         
         
         
@@ -192,6 +200,11 @@ sub feed {
         my $category = $schema->resultset('Category')->find($query->{'category'});
         my $feeds = $category->feeds;
         
+        # if specific source
+        if($query->{'source'}) {
+            $feeds = $feeds->search({ sourceid => {'in' => $query->{'source'}} });
+        }
+        
         my @feed_read;
         while (my $feed = $feeds->next) {
             push(@feed_read, $feed->id);
@@ -201,10 +214,11 @@ sub feed {
         my $results  = $schema->resultset('Item')->search (
     #        $query
             {
-                feedid => {'in' => \@feed_read},
+                feedid  => {'in' => \@feed_read},
+                media   => {'!=' => "''"},
             }, {
                 rows        => $extra->{'rows'},
-                order_by    => { -desc => [qw/id/] }
+                order_by    => { -desc => [qw/timestamp/] }
             }
         );
         
@@ -222,7 +236,7 @@ sub feed {
 sub schema {
     my $self = shift;
     my $config = novus::thai::utils->get_config();
-    print "--- create schema: ", Dumper($config);
+#    print "--- create schema: ", Dumper($config);
     
     return novus::thai::schema->connect(
                                 $config->{connect_info}[0], 
