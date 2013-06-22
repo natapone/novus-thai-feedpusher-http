@@ -5,6 +5,13 @@ use Moose;
 #use namespace::autoclean;
 use novus::thai::schema;
 use novus::thai::utils;
+
+use Novus::Data::Feed;
+use Novus::Data::Item;
+use Novus::Data::Media;
+use Novus::Data::SearchMeta;
+
+use Encode;
 use Data::Dumper;
 
 BEGIN { extends 'Catalyst::Controller' }
@@ -56,19 +63,119 @@ sub default : Private {
     $feed = $self->feed($q, $e);
     
     
+    
+    $c->stash->{ndf_object} = $feed;
+
+    if($feed_type =~ m/atom/i){
+        $c->stash->{current_view} = 'Atom';
+    }
+    elsif($feed_type =~ m/rss/i){
+        #FIX add total_entries to RSS if needed
+        $c->stash->{current_view} = 'RSS';
+    }
+    elsif($feed_type =~ m/json/i){
+        $c->stash->{current_view} = 'JSON';
+    }
+    elsif($feed_type =~ m/novus/i){
+        $c->stash->{current_view} = 'NovusDataFeed';
+    }
+    elsif (lc($feed_type) eq 'count') {
+        $c->stash->{value} = $c->model('FeedPusher')->count($q, $e);
+        $c->stash->{element_name} = 'count';
+        $c->stash->{current_view} = 'XML';
+    }
+    else{
+        warn "Unrecognized feed format!";
+    }
 }
 
 sub resultset_to_ndf_feed {
-    my ($self, $results, $query, $extra ) = @_;
+#    my $self    = shift;
+    my $results = shift;
+    my $query   = shift;
+    my $extra   = shift;
+#    my ($self, $results, $query, $extra ) = @_;
     $extra ||= {};
     #warn "query: " . dump($query);
 #    my $logger = get_logger();
     my $p = $query->{public};
+#    print "==query==", Dumper($query), "\n";
+#    print "==extra==", Dumper($extra), "\n";
     
+    my $sm = Novus::Data::SearchMeta->new( 
+#        total_entries    => $results->pager->total_entries,
+#        current_page     => $results->pager->current_page,
+#        entries_per_page => $results->pager->entries_per_page,
+        
+        total_entries    => 100,
+        current_page     => 1,
+        entries_per_page => 20,
+    );
     
+    my $feed = Novus::Data::Feed->new( 
+        searchmeta => $sm,
+#        title => $self->get_title($results),
+        title => "Alle nyheter",
+    );
     
+    my $id = build_query($query);
+    $id =~ s/public:1//;
+    $id =~ s/^\s+//;
+    $id =~ s/\s+$//;
+    $feed->id(Encode::encode("utf-8", $id));
     
+    while (my $res = $results->next) {
+        my $meta = {};
+#        my $meta  = $res->metadata;
+        
+        my $entry = Novus::Data::Item->new;
+        $entry->title($res->title);
+        $entry->id($res->id);
+        $entry->summary($res->description);
+        $entry->link($res->link);
+        
+        
+        
+        
+        
+        $feed->add_item($entry);
+    }
+    
+#    print "--feed--", Dumper($feed);
+    return $feed;
 }
+
+sub build_query {
+#    my $self = shift;
+    my $q = shift;
+    my @q_parts;
+
+    if ($q->{'terms'}) {
+        push(@q_parts, '' . $q->{'terms'} . '');
+    }
+
+    foreach my $k (keys %$q) {
+        next if ($k eq 'terms');
+        next unless defined $k;
+        my $v = $q->{$k};
+        my @v = (ref $v ? @$v : ($v));
+        my $q_part = "";
+        my $negate = 0;
+        if ($k =~ s/^!//) {
+            $negate = 1;
+            $q_part = "NOT ";
+            $q_part .= "(" if (scalar(@v) > 1);
+        }
+        $q_part .= join(' ', map { $k . ":" . $_ } grep { defined($_) } @v) . "";
+        if ($negate && scalar(@v) > 1) {
+            $q_part .=  ")";
+        }
+        push(@q_parts, $q_part);
+    }
+
+    return join(" ", @q_parts);
+}
+
 
 sub feed {
     my $self  = shift;
@@ -82,7 +189,7 @@ sub feed {
     
     if ($query->{'category'} ) {
         # get feeds list
-        my $category = $schema->resultset('Category')->find(3);
+        my $category = $schema->resultset('Category')->find($query->{'category'});
         my $feeds = $category->feeds;
         
         my @feed_read;
@@ -91,7 +198,7 @@ sub feed {
         }
         
         
-        my $items  = $schema->resultset('Item')->search (
+        my $results  = $schema->resultset('Item')->search (
     #        $query
             {
                 feedid => {'in' => \@feed_read},
@@ -101,15 +208,15 @@ sub feed {
             }
         );
         
-        while (my $item = $items->next) {
-            print "-----* ",$item->id,": ", $item->title, "\n";
-        }
+#        while (my $item = $items->next) {
+#            print "-----* ",$item->id,": ", $item->title, "\n";
+#        }
+    
+        # create feed
+        print "-----create feed-----  \n";
+        my $feeds = resultset_to_ndf_feed($results, $query, $extra);
+        return $feeds;
     }
-    
-    # create feed
-    print "-----create feed-----  \n";
-    
-    
 }
 
 sub schema {
