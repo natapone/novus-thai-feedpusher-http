@@ -135,16 +135,26 @@ sub resultset_to_ndf_feed {
         $entry->summary($res->description);
         $entry->link($res->link);
         
+        print $res->id, ": add media === ", $res->media, "\n";
+        
 #        $d =    $res->timestamp
         print "-----------------> ",strftime('%Y-%m-%dT%H:%M:%SZ',gmtime($res->timestamp)), "\n";
         my $updates = strftime('%Y-%m-%dT%H:%M:%SZ',gmtime($res->timestamp));
         $entry->modified( DateTime::Format::ISO8601->parse_datetime($updates) );
         
-#        $entry->siteid($meta->{feed}{source}{baseurl} || '');
-#        $entry->sitename($meta->{feed}{source}{name} || '');
-#        $entry->siteurl($meta->{feed}{source}{baseurl});
+        $entry->siteid($res->feed->source->url || '');
+        $entry->sitename($res->feed->source->name || '');
+        $entry->siteurl($res->feed->source->url);
         
+        # add media
         
+        if ($res->media) {
+            my $enclosure = {
+                'url' => $res->media,
+                'type' => 'image',
+            };
+            $entry->add_media( Novus::Data::Media->new( $enclosure) );
+        }
         
         $feed->add_item($entry);
     }
@@ -215,16 +225,16 @@ sub feed {
     #        $query
             {
                 feedid  => {'in' => \@feed_read},
-                media   => {'!=' => "''"},
+                'length(media)'   => {'>' => 0},
             }, {
                 rows        => $extra->{'rows'},
                 order_by    => { -desc => [qw/timestamp/] }
             }
         );
         
-#        while (my $item = $items->next) {
-#            print "-----* ",$item->id,": ", $item->title, "\n";
-#        }
+#        while (my $item = $results->next) {
+#            print "-----* ",$item->id,": ", $item->title, " -- ", $item->media, "\n";
+#        };
     
         # create feed
         print "-----create feed-----  \n";
