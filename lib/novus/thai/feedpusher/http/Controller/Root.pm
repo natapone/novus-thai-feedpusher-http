@@ -1,6 +1,8 @@
 package novus::thai::feedpusher::http::Controller::Root;
+use strict;
+use warnings;
 use Moose;
-use namespace::autoclean;
+#use namespace::autoclean;
 use novus::thai::schema;
 use novus::thai::utils;
 use Data::Dumper;
@@ -43,48 +45,85 @@ sub default : Private {
     print Dumper($e);
     
     ## check for some parameters in the query to override path-parts
-#    if ($c->req->param('page')) {
-#        $e->{page} = $c->req->param('page');
-#    }
+    if ($c->req->param('page')) {
+        $e->{page} = $c->req->param('page');
+    }
 #    
-#    my $feed;
+    my $feed;
 #    eval {$feed = $c->model('FeedPusher')->feed($q, $e)};
 #    eval {$feed = $self->feed($q, $e)};
+    
+    $feed = $self->feed($q, $e);
+    
+    
+}
+
+sub resultset_to_ndf_feed {
+    my ($self, $results, $query, $extra ) = @_;
+    $extra ||= {};
+    #warn "query: " . dump($query);
+#    my $logger = get_logger();
+    my $p = $query->{public};
     
     
     
     
 }
 
-#sub feed {
-#    my $self  = shift;
-#    my $query = shift || {};
-#    my $extra = shift || {};
-#    my $p     = delete $extra->{page} || 1;
-#    
-#    # search db
-#    my $schema = $self->schema;
-#    
-#    
-#    # create feed
-#    
-#    
-#    
-#}
+sub feed {
+    my $self  = shift;
+    my $query = shift || {};
+    my $extra = shift || {};
+    my $p     = delete $extra->{page} || 1;
+    
+    # search db, only category
+    my $schema = $self->schema();
+#    my $source = $schema->resultset('Source')->find(1);
+    
+    if ($query->{'category'} ) {
+        # get feeds list
+        my $category = $schema->resultset('Category')->find(3);
+        my $feeds = $category->feeds;
+        
+        my @feed_read;
+        while (my $feed = $feeds->next) {
+            push(@feed_read, $feed->id);
+        }
+        
+        
+        my $items  = $schema->resultset('Item')->search (
+    #        $query
+            {
+                feedid => {'in' => \@feed_read},
+            }, {
+                rows        => $extra->{'rows'},
+                order_by    => { -desc => [qw/id/] }
+            }
+        );
+        
+        while (my $item = $items->next) {
+            print "-----* ",$item->id,": ", $item->title, "\n";
+        }
+    }
+    
+    # create feed
+    print "-----create feed-----  \n";
+    
+    
+}
 
-#sub schema {
-#    my $self = shift;
-#    my $config = $self->config();
-#    
-#    print "--- create schema: ", Dumper($config);
-#    
-#    return novus::thai::schema->connect(
-#                                $config->{connect_info}[0], 
-#                                $config->{connect_info}[1], 
-#                                $config->{connect_info}[2], 
-#                                $config->{connect_info}[3], 
-#                            );
-#}
+sub schema {
+    my $self = shift;
+    my $config = novus::thai::utils->get_config();
+    print "--- create schema: ", Dumper($config);
+    
+    return novus::thai::schema->connect(
+                                $config->{connect_info}[0], 
+                                $config->{connect_info}[1], 
+                                $config->{connect_info}[2], 
+                                $config->{connect_info}[3], 
+                            );
+}
 
 #sub config {
 #    return novus::thai::utils->get_config();
