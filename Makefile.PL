@@ -9,13 +9,27 @@ use Module::Install::Catalyst; # Complain loudly if you don't have
 name 'novus-thai-feedpusher-http';
 all_from 'lib/novus/thai/feedpusher/http.pm';
 
+requires 'Moose';
 requires 'Catalyst::Runtime' => '5.90012';
 requires 'Catalyst::Plugin::ConfigLoader';
 requires 'Catalyst::Plugin::Static::Simple';
 requires 'Catalyst::Action::RenderView';
 requires 'Catalyst::View::JSON';
-requires 'Moose';
+
+requires 'Novus::Data::Feed';
+requires 'Novus::Data::Item';
+requires 'Novus::Data::Media';
+requires 'Novus::Data::SearchMeta';
+
+requires 'novus::thai::utils';
+requires 'novus::thai::schema';
+
 requires 'namespace::autoclean';
+requires 'XML::LibXML';
+requires 'XML::Feed';
+requires 'XML::RSS';
+requires 'POSIX';
+requires 'JSON';
 requires 'Config::General'; # This should reflect the config file format you've chosen
                  # See Catalyst::Plugin::ConfigLoader for supported formats
 test_requires 'Test::More' => '0.88';
