@@ -44,7 +44,7 @@ sub default : Private {
     # http://localhost:3003/type:json/rows:10/page:1/category:4
     
     my ($q, $e) = $self->parse_query(@args, $c->req->param('q') || undef);
-    my $feed_type = $q->{'type'}[0] || 'RSS';
+    my $feed_type = $q->{'type'}[0] || 'JSON';
     delete $q->{'type'};
     $e->{type} = $feed_type;
     
@@ -206,10 +206,14 @@ sub feed {
     my $extra = shift || {};
     my $p     = delete $extra->{page} || 1;
     
+    # set default
+    $extra->{'rows'} = 10       if (!defined($extra->{'rows'}));
+    
     # search db, only category
     my $schema = $self->schema();
 #    my $source = $schema->resultset('Source')->find(1);
     
+    my @feed_read;
     if ($query->{'category'} ) {
         # get feeds list
         my $category = $schema->resultset('Category')->find($query->{'category'});
@@ -220,12 +224,39 @@ sub feed {
             $feeds = $feeds->search({ sourceid => {'in' => $query->{'source'}} });
         }
         
-        my @feed_read;
         while (my $feed = $feeds->next) {
             push(@feed_read, $feed->id);
         }
         
         
+#        my $results  = $schema->resultset('Item')->search (
+#    #        $query
+#            {
+#                feedid  => {'in' => \@feed_read},
+#                'length(media)'   => {'>' => 0},
+#            }, {
+#                rows        => $extra->{'rows'},
+#                order_by    => { -desc => [qw/timestamp/] }
+#            }
+#        );
+#        
+##        while (my $item = $results->next) {
+##            print "-----* ",$item->id,": ", $item->title, " -- ", $item->media, "\n";
+##        };
+#    
+#        # create feed
+##        print "-----create feed-----  \n";
+#        my $result_feeds = resultset_to_ndf_feed($results, $query, $extra);
+#        return $result_feeds;
+    } else {
+        my $feeds = $schema->resultset('Feed');
+        while (my $feed = $feeds->next) {
+            push(@feed_read, $feed->id);
+        }
+        
+    }
+    
+    if (@feed_read) {
         my $results  = $schema->resultset('Item')->search (
     #        $query
             {
