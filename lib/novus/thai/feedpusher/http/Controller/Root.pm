@@ -1,6 +1,5 @@
 package novus::thai::feedpusher::http::Controller::Root;
-use strict;
-use warnings;
+
 use Moose;
 #use namespace::autoclean;
 use novus::thai::schema;
