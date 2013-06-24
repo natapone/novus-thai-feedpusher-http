@@ -49,8 +49,8 @@ sub default : Private {
     delete $q->{'type'};
     $e->{type} = $feed_type;
     
-    print Dumper($q);
-    print Dumper($e);
+#    print Dumper($q);
+#    print Dumper($e);
     
     ## check for some parameters in the query to override path-parts
     if ($c->req->param('page')) {
@@ -135,10 +135,10 @@ sub resultset_to_ndf_feed {
         $entry->summary($res->description);
         $entry->link($res->link);
         
-#        print $res->id, ": add media === ", $res->media, "\n";
+#        print $res->id, ": add media === ",$res->feed->source->url, " : ", $res->media, "\n";
         
 #        $d =    $res->timestamp
-        print "-----------------> ",strftime('%Y-%m-%dT%H:%M:%SZ',gmtime($res->timestamp)), "\n";
+#        print "-----------------> ",strftime('%Y-%m-%dT%H:%M:%SZ',gmtime($res->timestamp)), "\n";
         my $updates = strftime('%Y-%m-%dT%H:%M:%SZ',gmtime($res->timestamp));
         $entry->modified( DateTime::Format::ISO8601->parse_datetime($updates) );
         
@@ -149,8 +149,14 @@ sub resultset_to_ndf_feed {
         # add media
         
         if ($res->media) {
+            my $media_url = $res->media;
+            if ($res->media !~ m/^http/ ) {
+                $media_url = $res->feed->source->url . $media_url;
+#                print "     -- fix: $media_url \n";
+            }
+            
             my $enclosure = {
-                'url' => $res->media,
+                'url' => $media_url,
                 'type' => 'image',
             };
             $entry->add_media( Novus::Data::Media->new( $enclosure) );
@@ -237,7 +243,7 @@ sub feed {
 #        };
     
         # create feed
-        print "-----create feed-----  \n";
+#        print "-----create feed-----  \n";
         my $result_feeds = resultset_to_ndf_feed($results, $query, $extra);
         return $result_feeds;
     }
