@@ -130,18 +130,6 @@ sub get_meta_categories_public {
         push($meta, $cat);
     }
     
-#    my $xxx = {
-#        'id' => 1,
-#        'name' => 'aaaaaa'
-#    };
-#    push($meta, $xxx);
-#    
-#    $xxx = {
-#        'id' => 2,
-#        'name' => 'bbbbbbb'
-#    };
-#    push($meta, $xxx);
-    
     return $meta;
 }
 
