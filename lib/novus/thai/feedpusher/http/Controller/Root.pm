@@ -44,49 +44,105 @@ sub default : Private {
     # http://localhost:3003/type:json/rows:10/page:1/category:4
     
     my ($q, $e) = $self->parse_query(@args, $c->req->param('q') || undef);
-    my $feed_type = $q->{'type'}[0] || 'JSON';
+#    my $feed_type = $q->{'type'}[0] || 'JSON';
+    my $feed_type = 'JSON';
     delete $q->{'type'};
     $e->{type} = $feed_type;
     
+#    print Dumper(\@args);
 #    print Dumper($q);
 #    print Dumper($e);
     
-    ## check for some parameters in the query to override path-parts
-    if ($c->req->param('page')) {
-        $e->{page} = $c->req->param('page');
+    # deal with meta feed request
+    if ($args[0] eq 'meta') {
+        
+        my $meta = $self->meta_to_ndf_feed( join('/', @args) );
+        
+        $c->stash->{meta_object} = $meta;
+        $c->stash->{current_view} = 'META';
+    } else {
+        ## check for some parameters in the query to override path-parts
+        if ($c->req->param('page')) {
+            $e->{page} = $c->req->param('page');
+        }
+    #    
+        my $feed;
+    #    eval {$feed = $c->model('FeedPusher')->feed($q, $e)};
+    #    eval {$feed = $self->feed($q, $e)};
+        
+        $feed = $self->feed($q, $e);
+        
+        $c->stash->{ndf_object} = $feed;
+        
+        if($feed_type =~ m/atom/i){
+            $c->stash->{current_view} = 'Atom';
+        }
+        elsif($feed_type =~ m/rss/i){
+            #FIX add total_entries to RSS if needed
+            $c->stash->{current_view} = 'RSS';
+        }
+        elsif($feed_type =~ m/json/i){
+            $c->stash->{current_view} = 'JSON';
+        }
+        elsif($feed_type =~ m/novus/i){
+            $c->stash->{current_view} = 'NovusDataFeed';
+        }
+        elsif (lc($feed_type) eq 'count') {
+            $c->stash->{value} = $c->model('FeedPusher')->count($q, $e);
+            $c->stash->{element_name} = 'count';
+            $c->stash->{current_view} = 'XML';
+        }
+        else{
+            warn "Unrecognized feed format!";
+        }
     }
-#    
-    my $feed;
-#    eval {$feed = $c->model('FeedPusher')->feed($q, $e)};
-#    eval {$feed = $self->feed($q, $e)};
-    
-    $feed = $self->feed($q, $e);
-    
-    
-    
-    $c->stash->{ndf_object} = $feed;
+}
 
-    if($feed_type =~ m/atom/i){
-        $c->stash->{current_view} = 'Atom';
+sub meta_to_ndf_feed{
+    my $self        = shift;
+    my $meta_name   = shift;
+    
+#    print "---- request === $meta_name\n";
+    my $meta;
+    if ($meta_name eq 'meta/categories/public') {
+        $meta = $self->get_meta_categories_public();
+    } else {
+        print "*** Invalid call --> ", $meta_name, "\n";
     }
-    elsif($feed_type =~ m/rss/i){
-        #FIX add total_entries to RSS if needed
-        $c->stash->{current_view} = 'RSS';
+    
+#    print "++++ result meta = ", Dumper($meta);
+    
+    return $meta;
+}
+
+sub get_meta_categories_public {
+    my $self    = shift;
+    my $schema  = $self->schema();
+    my $categories = $schema->resultset('Category');
+    
+    my $meta = [];
+    
+    while (my $category = $categories->next) {
+        my $cat = {
+            'id'    => $category->id,
+            'name'  => $category->name
+        };
+        push($meta, $cat);
     }
-    elsif($feed_type =~ m/json/i){
-        $c->stash->{current_view} = 'JSON';
-    }
-    elsif($feed_type =~ m/novus/i){
-        $c->stash->{current_view} = 'NovusDataFeed';
-    }
-    elsif (lc($feed_type) eq 'count') {
-        $c->stash->{value} = $c->model('FeedPusher')->count($q, $e);
-        $c->stash->{element_name} = 'count';
-        $c->stash->{current_view} = 'XML';
-    }
-    else{
-        warn "Unrecognized feed format!";
-    }
+    
+#    my $xxx = {
+#        'id' => 1,
+#        'name' => 'aaaaaa'
+#    };
+#    push($meta, $xxx);
+#    
+#    $xxx = {
+#        'id' => 2,
+#        'name' => 'bbbbbbb'
+#    };
+#    push($meta, $xxx);
+    
+    return $meta;
 }
 
 sub resultset_to_ndf_feed {
