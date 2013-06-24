@@ -135,7 +135,7 @@ sub resultset_to_ndf_feed {
         $entry->summary($res->description);
         $entry->link($res->link);
         
-        print $res->id, ": add media === ", $res->media, "\n";
+#        print $res->id, ": add media === ", $res->media, "\n";
         
 #        $d =    $res->timestamp
         print "-----------------> ",strftime('%Y-%m-%dT%H:%M:%SZ',gmtime($res->timestamp)), "\n";
@@ -238,8 +238,8 @@ sub feed {
     
         # create feed
         print "-----create feed-----  \n";
-        my $feeds = resultset_to_ndf_feed($results, $query, $extra);
-        return $feeds;
+        my $result_feeds = resultset_to_ndf_feed($results, $query, $extra);
+        return $result_feeds;
     }
 }
 
@@ -319,25 +319,6 @@ sub parse_query {
     return ($query, \%extra);
 
 }
-
-##sub index :Path :Args(0) {
-##    my ( $self, $c ) = @_;
-
-##    # Hello World
-##    $c->response->body( $c->welcome_message );
-##}
-
-##=head2 default
-
-##Standard 404 error page
-
-##=cut
-
-##sub default :Path {
-##    my ( $self, $c ) = @_;
-##    $c->response->body( 'Page not found' );
-##    $c->response->status(404);
-##}
 
 =head2 end
 
